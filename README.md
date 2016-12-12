@@ -42,9 +42,9 @@ Note that the implementation and type of these methods in the Scala library are 
 
 ## For-Expressions
 
-For-Expressions are useful because they gice you a simpler notation for something that comes down to combinations of these core methods, _map_, _flatMap_, and _filter_.
+_For-Expressions_ are useful because they give you a simpler notation for something that comes down to combinations of these core methods, _map_, _flatMap_, and _filter_.
 
-The Scala compiler translates for-expressions in terms of _map_, _flatMap_ and _withFilter_, a lazy variant of _filter_, that does not produce an intermediate list, but instead filters the following _map_ or _flatMap_ function application.
+In fact, the Scala compiler translates for-expressions in terms of _map_, _flatMap_ and _withFilter_, a lazy variant of _filter_, that does not produce an intermediate list, but instead filters the following _map_ or _flatMap_ function application.
  
 Here is the translation scheme used by the compiler:
 
