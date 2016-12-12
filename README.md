@@ -106,10 +106,11 @@ trait Generator[+T] {
   def generate: T
 
   def map[S](f: T => S): Generator[S] = new Generator[S] {
-    def generate = f(self.generate)
+    def generate = f(self.generate)       // self.generate or Generator.this.generate
   }
   
   def flatMap[S](f: T => Generator[S]): Generator[S] = new Generator[S] {
+    // apply f to a random value of type T, and then pick a random value from the domain S
     def generate = f(self.generate).generate
   }
 ```
@@ -118,9 +119,9 @@ The _booleans Generator_
 ```scala
 val booleans = for (x <- integers) yield x > 0
 ```
-expands to
+would be expanded by the compiler to
 ```scala
-val booleans = integers map { x => x > 0 }
+val booleans = integers map(_ > 0)
 
 val booleans = new Generator[Boolean] {
   def generate = (x: Int => x > 0)(integers.generate)
@@ -136,7 +137,7 @@ val pairs = new Generator[(Int, Int)] {
   def generate = (integers.generate, integers.generate)
 }
 ```
-can be generalized and expand to
+can be generalized and expanded to
 ```scala
 def pairs[T, U](t: Generator[T], u: Generator[U]) = t flatMap {
   x => u map { y => (x, y) }
@@ -150,27 +151,36 @@ def pairs[T, U](t: Generator[T], u: Generator[U]) = new Generator[(T, U)] {
   def generate = (new Generator[(T, U)] {
     def generate = (t.generate, u.generate)
   }).generate }
+  
+def pairs[T, U](t: Generator[T], u: Generator[U]) = new Generator[(T, U)] {
+  def generate = (t.generate, u.generate)
+}
 ```
 
-#### Generator Examples
+##### Other Building Blocks for Generator
 
 ```scala
+// single always give you back the same random value T
 def single[T](x: T): Generator[T] = new Generator[T] {
   def generate = x
 }
 
+// choose give you an integer in the interval between lo and hi
 def choose(lo: Int, hi: Int): Generator[Int] =
   for (x <- integers) yield lo + x % (hi - lo)
 
+// oneOf picks an arbitrary value from a list of choices
 def oneOf[T](xs: T*): Generator[T] =
   for (idx <- choose(0, xs.length)) yield xs(idx)
 ```
-A _List_ Generator
+With these building blocks we can set out to write random value generators for some more structured types.
+
+##### A List Generator
 
 A list is either an empty list or a non-empty list.
 ```scala
 def lists: Generator[List[Int]] = for {
-  isEmpty <- booleans
+  isEmpty <- booleans      // we flip a coin where the list should be empty or non-emmpty
   list <- if (isEmpty) emptyLists else nonEmptyLists
 } yield list
 
@@ -182,25 +192,67 @@ def nonEmptyLists = for {
 } yield head :: tail
 ```
 
-A Tree Generator
+##### A Tree Generator
 ```scala
 trait Tree
 case class Inner(left: Tree, right: Tree) extends Tree
 case class Leaf(x: Int) extends Tree
+
+val integers = new Generator[Int] {
+  def generate = scala.util.Random.nextInt()
+}
+
+val booleans = integers.map(_ >= 0)
+
+def leafs = Generator[Leaf] = for {
+  x <- intergers
+} yield Leaf(x)
+
+def inners = Generator[Inner] = for {
+  l <- trees
+  r <- trees
+} yield Inner(l, r)
+
+def trees = Generator[Tree] = for {
+  isLeaf <- boolean
+  tree <- if (isLeaf) leafs else inners
+} yields tree
+
+// trees.generate
 ```
 
-Random Test Function
-Using generators, we can write a random test function:
+#### Random Test Function
+
+Using generators, we can write a random test function (that will generate random test inputs).
 ```scala
 def test[T](g: Generator[T], numTimes: Int = 100)
   (test: T => Boolean): Unit = {
     for (i <- 0 until numTimes) {
       val value = g.generate
-      assert(test(value), ”test failed for ”+value)
+      assert(test(value), ”test failed for ” + value)
     }
-    println(”passed ”+numTimes+” tests”)
+    println(”passed ” + numTimes + ” tests”)
   }
 ```
+Example
+```scala
+test(pairs(lists, lists)) {
+  case (xs, ys) => (xs ++ ys).length > xs.length
+}
+```
+
+The idea of these random tests and random value generators is embedded in the
+[ScalaCheck](https://scalacheck.org/) tool, a property-based testing framework for Scala.
+Instead of writing tests, write _properties_ that are assumed to hold.
+
+Example
+```scala
+forAll { (l1: List[Int], l2: List[Int]) => 
+  l1.size + l2.size == (l1 ++ l2).size
+}
+```
+It can be used either stand-alone or as part of 
+[ScalaTest](http://www.scalatest.org/).
 
 ## Monads
 
