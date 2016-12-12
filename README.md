@@ -2,7 +2,11 @@
 
 ## Collections
 
-All collection types share a common set of general methods. The core methods are: __map__, __flatMap__, __filter__.
+Scala has a uite rich hierarchy of collection classes.
+
+![Scala Collections](http://docs.scala-lang.org/resources/images/collections.png "Scala Collection Hierarchy")
+
+All collection types share a common set of general methods. The core methods are we are interested here are: __map__, __flatMap__, __filter__.
 
 *Idealized Implementation of __map__ on Lists*
 ```scala
@@ -34,7 +38,15 @@ abstract class List[+T] {
 }
 ```
 
-The Scala compiler translates for-expressions in terms of _map_, _flatMap_ and a lazy variant of _filter_. Here is the translation scheme used by the compiler:
+Note that the implementation and type of these methods in the Scala library are different in order to make them apply to _arbitrary collections_ and make them _tail-recursive_ on lists (to give us something that works in contant stack space).
+
+## For-Expressions
+
+For-Expressions are useful because they gice you a simpler notation for something that comes down to combinations of these core methods, _map_, _flatMap_, and _filter_.
+
+The Scala compiler translates for-expressions in terms of _map_, _flatMap_ and _withFilter_, a lazy variant of _filter_, that does not produce an intermediate list, but instead filters the following _map_ or _flatMap_ function application.
+ 
+Here is the translation scheme used by the compiler:
 
 ```scala
 for (x <- e1) yield e2                         -->   e1.map(x => e2)
@@ -42,8 +54,6 @@ for (x <- e1 if f; s) yield e2                 -->   for (x <- e1.withFilter(x =
 for (x <- e1.withFilter(x => f); s) yield e2   -->   e1.flatMap(x => for (y <- e2; s) yield e3)
 ```
 where _f_ is a filter and _s_ is a (potentially empty) sequence of generators and filters.
-
-You can think of _withFilter_ as a variant of filter that does not produce an intermediate list, but instead filters the following map or _flatMap_ function application.
 
 #### Example of a for-expression translation into higher-order functions
 
