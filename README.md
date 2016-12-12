@@ -268,7 +268,7 @@ that have to satisfy the following laws:
 
 *Associativity*:
 ```scala
-m flatMap f flatMap g == m flatMap (x => f(x) flatMap g)
+(m flatMap f) flatMap g == m flatMap ((x => f(x) flatMap g))
 ```
 *Left unit*:
 ```scala
@@ -278,6 +278,7 @@ unit(x) flatMap f == f(x)
 ```scala
 m flatMap unit == m
 ```
+If they also define _withFilter_, they are called "monads with zero".
 
 #### Examples of Monads
 
@@ -286,7 +287,7 @@ m flatMap unit == m
 - *Option* is a monad with `unit(x) = Some(x)`
 - *Generator* is a monad with `unit(x) = single(x)`
 
-##### Let's demonstrate for example that Option is a monad.
+##### Let's demonstrate for example that Option is a monad
 
 Here’s *flatMap* for *Option*:
 ```scala
@@ -347,9 +348,42 @@ QED
 QED
 ```
 
-#### Monad and For-Expressions
+##### The type Try is not a monad
 
-Monad-typed expressions are typically written as for expressions.
+Try resembles _Option_, but instead _Some_/_None_ there is a _Success_ case with a value and a _Failure_ case that contains an exception:
+```scala
+abstract class Try[+T]
+case class Success[T](x: T)       extend Try[T]
+case class Failure(ex: Exception) extend Try[Nothing]
+```
+_Try_ is used to pass results of computations that can fail with an exception between threads and even between computers.
 
+An exemple of implementation follows (note the call by name parameter in _apply_):
+```scala
+object Try {
+  def apply[T](expr: => T): Try[T] = 
+    try Success(expr)
+    catch {
+      case NonFatal(ex) => Falure(ex)
+    }
+}
+
+// Try(expr)      // gives Success(someValue) or Failure(someException)
+```
+We have as usual define the methods _map_ and _flatMap_ on Try
+```scala
+abstract class Try[T] {
+  def map[U](f: T => U): Try[U] = this match {
+    case Success(x) => Try(f(x))
+    case fail: Failure => fail
+  }
+
+  def flatMap[U](f: T => Try[u]): Try[U] = this match {
+    case Success(x) => try f(x) catch { case NonFatal(ex) => Failure(ex) }
+    case fail: Failure => fail
+  }
+}
+```
+_Try_ cannot be a monad with _unit_ == _Try_, because the left unit law fails.
 
 
